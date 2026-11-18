@@ -5,6 +5,10 @@ import { api, horarioLegivel, type Agendamento, type Profissional } from "../lib
 import ContaCliente, { type SessaoCliente } from "./conta-cliente";
 import DataHora from "./data-hora";
 
+import Calendario from "./calendario";
+import { useSessao } from "./sessao";
+import { enderecoFoto } from "../lib/api";
+
 const etapas = ["Conta", "Especialidade", "Profissional", "Data e hora"];
 const titulos = ["Acesse sua conta", "Escolha a especialidade", "Escolha o profissional", "Escolha a data e o horário"];
 const categoria = (p: Profissional) => (p.categoria || "Outros").trim().toLocaleLowerCase("pt-BR");
@@ -12,13 +16,18 @@ const categoria = (p: Profissional) => (p.categoria || "Outros").trim().toLocale
 function Avatar({ perfil }: { perfil: Profissional }) {
   const [falhou, setFalhou] = useState(false);
   const iniciais = perfil.nome.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join("");
-  return perfil.fotoUrl && !falhou ? <img className="avatar" src={perfil.fotoUrl} alt="" referrerPolicy="no-referrer"
+  return perfil.fotoUrl && !falhou ? <img className="avatar" src={enderecoFoto(perfil.fotoUrl)} alt="" referrerPolicy="no-referrer"
     onError={() => setFalhou(true)} /> : <span aria-hidden="true" className="avatar">{iniciais}</span>;
 }
 
 export default function Reserva() {
-  const [passo, setPasso] = useState(0);
-  const [sessao, setSessao] = useState<SessaoCliente | null>(null);
+  const { pronta, sessao, salvar } = useSessao();
+  if (!pronta) return <p role="status">Carregando…</p>;
+  return <Fluxo key={sessao?.token ?? "visitante"} sessao={sessao} setSessao={salvar} />;
+}
+
+function Fluxo({ sessao, setSessao }: { sessao: SessaoCliente | null; setSessao: (s: SessaoCliente | null) => void }) {
+  const [passo, setPasso] = useState(sessao ? 1 : 0);
   const [lista, setLista] = useState<Profissional[] | null>(null);
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
@@ -67,6 +76,7 @@ export default function Reserva() {
       <button className="secundario" onClick={() => setPasso(1)}>Voltar</button></>}
     {passo === 3 && perfil && sessao && (salvo ? <>
       <p role="status">{perfil.nome} · {horarioLegivel(salvo.dataHora)}</p>
+      <Calendario data={salvo.dataHora} profissional={perfil.nome} />
       <button onClick={() => { setSalvo(null); setPerfil(null); setPasso(1); }}>Agendar outro atendimento</button></>
       : <DataHora perfil={perfil} sessao={sessao} confirmar={setSalvo} voltar={() => setPasso(2)} entrar={sair} />)}
   </section>;

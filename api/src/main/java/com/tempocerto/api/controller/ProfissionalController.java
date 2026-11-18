@@ -64,7 +64,7 @@ public class ProfissionalController {
 
     @GetMapping
     public List<PerfilPublico> listar() {
-        return repository.findAll().stream().map(p -> new PerfilPublico(p.getId(), p.getNome(),
+        return repository.listarPerfisPublicos().stream().map(p -> new PerfilPublico(p.getId(), p.getNome(),
             p.getCategoria() == null || p.getCategoria().isBlank() ? "Outros" : p.getCategoria(), p.getFotoUrl())).toList();
     }
 

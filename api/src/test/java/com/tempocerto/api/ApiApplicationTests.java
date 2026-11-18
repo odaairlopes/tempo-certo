@@ -82,6 +82,13 @@ class ApiApplicationTests {
                 .containsExactlyInAnyOrder(200, 409);
             assertThat(agendamentos.findByProfissionalIdOrderByDataHoraAsc(id)).hasSize(1);
 
+            var minhas = HttpRequest.newBuilder(uri("/cliente/atendimentos"));
+            assertThat(http.send(minhas.build(), HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(401);
+            var historico = http.send(minhas.setHeader("Authorization", "Bearer " + token).build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(historico.body()).contains("Profissional de teste", horario.toString());
+            var outro = cadastrarEEntrar(http, id + "outro");
+            assertThat(http.send(minhas.setHeader("Authorization", "Bearer " + outro).build(), HttpResponse.BodyHandlers.ofString()).body()).isEqualTo("[]");
+
             var agenda = uri("/agendamentos/profissional/" + id);
             var semChave = http.send(HttpRequest.newBuilder(agenda).build(), HttpResponse.BodyHandlers.ofString());
             assertThat(semChave.statusCode()).isEqualTo(403);
@@ -192,6 +199,41 @@ class ApiApplicationTests {
             agendamentos.deleteById(reservaId);
             profissionais.deleteById(id);
         }
+    }
+
+    @Test
+    void enviaFotosEIsolaPerfilDoCliente() throws Exception {
+        String id = profissionalDeTeste();
+        try (var http = HttpClient.newHttpClient()) {
+            var token = cadastrarEEntrar(http, id);
+            var cliente = org.springframework.web.client.RestClient.create();
+            var campos = new org.springframework.util.LinkedMultiValueMap<String,Object>();
+            var imagem = new java.awt.image.BufferedImage(10, 10, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var buffer = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(imagem, "png", buffer);
+            var foto = new org.springframework.core.io.ByteArrayResource(buffer.toByteArray()) {
+                @Override public String getFilename() { return "perfil.png"; }
+            };
+            campos.add("foto", foto);
+            var rota = uri("/profissionais/" + id + "/foto");
+            var negada = cliente.put().uri(rota).header("Authorization", "Bearer " + token).body(campos)
+                .exchange((req,res) -> res.getStatusCode().value());
+            assertThat(negada).isEqualTo(403);
+            var resultado = cliente.put().uri(rota).header("X-Agenda-Key", "chave-de-teste").body(campos)
+                .retrieve().body(String.class);
+            assertThat(resultado).contains("/foto?v=");
+            var publica = http.send(HttpRequest.newBuilder(rota).build(), HttpResponse.BodyHandlers.ofByteArray());
+            assertThat(publica.statusCode()).isEqualTo(200);
+            assertThat(javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(publica.body())).getWidth()).isEqualTo(10);
+            campos.add("nome", "Nome atualizado");
+            var perfil = cliente.put().uri(uri("/cliente/perfil")).header("Authorization", "Bearer " + token)
+                .body(campos).retrieve().body(String.class);
+            assertThat(perfil).contains("Nome atualizado", "data:image/jpeg;base64,").doesNotContain("senhaHash");
+            var outro = cadastrarEEntrar(http, id + "outro");
+            var privado = cliente.get().uri(uri("/cliente/perfil")).header("Authorization", "Bearer " + outro)
+                .retrieve().body(String.class);
+            assertThat(privado).doesNotContain("Nome atualizado", "base64");
+        } finally { profissionais.deleteById(id); }
     }
 
     private String profissionalDeTeste() {

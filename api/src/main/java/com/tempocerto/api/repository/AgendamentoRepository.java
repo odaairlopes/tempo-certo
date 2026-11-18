@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
 public interface AgendamentoRepository extends MongoRepository<Agendamento, String> {
+    List<Agendamento> findByClienteIdOrderByDataHoraDesc(String clienteId);
     List<Agendamento> findByProfissionalIdOrderByDataHoraAsc(String profissionalId);
     @Query("{'profissionalId': ?0, 'dataHora': {'$gte': ?1, '$lt': ?2}}")
     List<Agendamento> findNoPeriodo(

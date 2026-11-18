@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "agendamentos")
 @CompoundIndexes({
     @CompoundIndex(name = "profissional_horario_unico", def = "{'profissionalId': 1, 'dataHora': 1}", unique = true),
+    @CompoundIndex(name = "cliente_historico", def = "{'clienteId': 1, 'dataHora': -1}", sparse = true),
     @CompoundIndex(name = "fila_confirmacao", def = "{'confirmacao.proxima': 1}", sparse = true),
     @CompoundIndex(name = "fila_lembrete", def = "{'lembrete.proxima': 1}", sparse = true)
 })
