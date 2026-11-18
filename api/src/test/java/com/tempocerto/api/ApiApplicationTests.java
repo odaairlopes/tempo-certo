@@ -226,9 +226,11 @@ class ApiApplicationTests {
             assertThat(publica.statusCode()).isEqualTo(200);
             assertThat(javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(publica.body())).getWidth()).isEqualTo(10);
             campos.add("nome", "Nome atualizado");
+            campos.add("cidade", "Recife");
+            campos.add("telefone", "(81) 99999-1234");
             var perfil = cliente.put().uri(uri("/cliente/perfil")).header("Authorization", "Bearer " + token)
                 .body(campos).retrieve().body(String.class);
-            assertThat(perfil).contains("Nome atualizado", "data:image/jpeg;base64,").doesNotContain("senhaHash");
+            assertThat(perfil).contains("Nome atualizado", "Recife", "(81) 99999-1234", "data:image/jpeg;base64,").doesNotContain("senhaHash");
             var outro = cadastrarEEntrar(http, id + "outro");
             var privado = cliente.get().uri(uri("/cliente/perfil")).header("Authorization", "Bearer " + outro)
                 .retrieve().body(String.class);

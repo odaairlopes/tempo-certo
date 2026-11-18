@@ -1,5 +1,7 @@
 "use client";
 
+import { Progresso } from "../carregamento";
+
 import { useState, type FormEvent } from "react";
 import { api } from "../../lib/api";
 
@@ -78,7 +80,7 @@ export default function EditarDisponibilidade({ rota, chave, inicial }: {
           <textarea name="folgas" rows={3} className="rounded-md border border-[#71877d] p-2"
             maxLength={4026} defaultValue={inicial?.folgas.join("\n")} />
         </label>
-        <button type="submit">{ocupado ? "Salvando…" : "Salvar disponibilidade"}</button>
+        <button type="submit">{ocupado ? <Progresso texto="Salvando disponibilidade…" /> : "Salvar disponibilidade"}</button>
       </fieldset>
       <p role="alert" className="notice">{erro}</p>
       <p role="status" className="result">{status}</p>

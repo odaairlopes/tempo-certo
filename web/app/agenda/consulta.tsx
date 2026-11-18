@@ -1,5 +1,7 @@
 "use client";
 
+import { Progresso } from "../carregamento";
+
 import { useState, type FormEvent } from "react";
 import { api, horarioLegivel, type Agendamento, type Profissional } from "../../lib/api";
 import EditarDisponibilidade, { type Configuracao } from "./disponibilidade";
@@ -14,6 +16,7 @@ export default function Consulta() {
   const [foto, setFoto] = useState<File | null>(null);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [avisoFoto, setAvisoFoto] = useState("");
+  const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [editor, setEditor] = useState<(Configuracao & { rota: string; chave: string }) | null>(null);
 
@@ -80,7 +83,7 @@ export default function Consulta() {
           <label>Chave da agenda
             <input name="chave" type="password" autoComplete="current-password" required maxLength={128} />
           </label>
-          <button type="submit">{buscando ? "Consultando…" : "Consultar agenda"}</button>
+          <button type="submit">{buscando ? <Progresso texto="Consultando agenda…" /> : "Consultar agenda"}</button>
         </fieldset>
       </form>}
       <p role="alert" className="notice mt-4 empty:mt-0">{erro}</p>
@@ -102,6 +105,8 @@ export default function Consulta() {
       {editor && perfil && <form className="mt-6 grid gap-3" onSubmit={async event => {
         event.preventDefault();
         const dados = new FormData(event.currentTarget);
+        if (salvando) return;
+        setSalvando(true);
         const categoria = String(dados.get("categoria")).trim();
         setAviso("");
         try {
@@ -112,9 +117,10 @@ export default function Consulta() {
           setPerfil(atualizado);
           setAviso("Perfil salvo.");
         } catch (falha) { setAviso(falha instanceof Error ? falha.message : "Falha ao salvar."); }
+        finally { setSalvando(false); }
       }}>
-        <label>Categoria profissional<input name="categoria" required maxLength={60} defaultValue={perfil.categoria} /></label>
-        <button>Salvar perfil</button>
+        <label>Categoria profissional<input name="categoria" disabled={salvando} required maxLength={60} defaultValue={perfil.categoria} /></label>
+        <button disabled={salvando}>{salvando ? <Progresso texto="Salvando perfil…" /> : "Salvar perfil"}</button>
         <p role="status">{aviso}</p>
       </form>}
       {editor && perfil && <form className="mt-6 grid gap-3" onSubmit={async event => {
@@ -131,8 +137,8 @@ export default function Consulta() {
         } catch (e) { setAvisoFoto(e instanceof Error ? e.message : "Falha ao enviar foto."); }
         finally { setEnviandoFoto(false); }
       }}><fieldset className="grid gap-3" disabled={enviandoFoto}>
-        <Foto key={perfil.fotoUrl} atual={perfil.fotoUrl} escolher={setFoto} />
-        <button disabled={!foto}>{enviandoFoto ? "Enviando…" : "Salvar foto"}</button>
+        <Foto nome={perfil.nome} key={perfil.fotoUrl} atual={perfil.fotoUrl} escolher={setFoto} />
+        <button disabled={!foto}>{enviandoFoto ? <Progresso texto="Enviando foto…" /> : "Salvar foto"}</button>
       </fieldset><p role="status">{avisoFoto}</p></form>}
     </div>
   );

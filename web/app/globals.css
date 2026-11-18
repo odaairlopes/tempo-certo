@@ -43,3 +43,18 @@ button.opcao { display: flex; align-items: center; gap: 1rem; background: #f7faf
 button.opcao:hover { border-color: var(--brand); }
 .opcao small { display: block; color: var(--muted); font-weight: 450; }
 .avatar { display: grid; place-items: center; width: 3rem; height: 3rem; flex-shrink: 0; border-radius: 50%; object-fit: cover; background: #dbeae1; }
+.progresso { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; }
+.spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: girar .8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.carregamento { display: grid; gap: .8rem; color: var(--muted); }
+.barras { display: grid; gap: .65rem; }
+.barras i { display: block; border-radius: .45rem; height: .9rem; width: 100%; background: #dae5db; animation: pulsar 1.5s ease-in-out infinite alternate; }
+.barras i:nth-child(2) { width: 79%; }
+.barras i:last-child { width: 58%; }
+@keyframes pulsar { to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .spinner, .barras i { animation: none; } }
+.foto-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .9rem; background: #f7faf6; }
+.foto-editor .avatar { width: 4.5rem; height: 4.5rem; font-weight: 750; font-size: 1.45rem; color: var(--brand); }
+.foto-acao { display: inline-flex; align-items: center; width: fit-content; min-height: 2.75rem; cursor: pointer; text-decoration: underline; color: var(--brand); }
+.foto-acao:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.foto-ajuda { color: var(--muted); font-size: .875rem; }

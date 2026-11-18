@@ -32,33 +32,44 @@ public class PerfilController {
         this.reservas = reservas;
     }
 
-    public record Perfil(String nome, String email, String foto) {}
+    public record Perfil(String nome, String email, String foto, String telefone, String cidade) {}
     public record Atendimento(String id, String profissional, LocalDateTime dataHora) {}
+    public record Contato(byte[] foto, String telefone, String cidade) {}
     public record Imagem(byte[] foto) {}
     public record FotoPublica(String fotoUrl) {}
 
-    private byte[] foto(String id, String colecao) {
-        var query = Query.query(where("_id").is(id));
-        query.fields().include("foto");
-        var imagem = mongo.findOne(query, Imagem.class, colecao);
-        return imagem == null ? null : imagem.foto();
-    }
 
     @GetMapping("/cliente/perfil")
     public ResponseEntity<Perfil> perfil(@RequestHeader(value="Authorization", required=false) String auth) {
         var conta = contas.exigir(auth);
-        byte[] bytes = foto(conta.id(), "clientes");
+        var query = Query.query(where("_id").is(conta.id()));
+        query.fields().include("foto").include("telefone").include("cidade");
+        var contato = mongo.findOne(query, Contato.class, "clientes");
+        byte[] bytes = contato == null ? null : contato.foto();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Perfil(conta.nome(), conta.email(),
-            bytes == null ? null : "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes)));
+            bytes == null ? null : "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes),
+            contato == null ? null : contato.telefone(), contato == null ? null : contato.cidade()));
     }
 
     @PutMapping("/cliente/perfil")
     public ResponseEntity<Perfil> salvar(@RequestHeader(value="Authorization", required=false) String auth,
-            @RequestParam String nome, @RequestParam(required=false) MultipartFile foto) {
+            @RequestParam String nome, @RequestParam(required=false) MultipartFile foto,
+            @RequestParam(required=false) String telefone, @RequestParam(required=false) String cidade) {
         var conta = contas.exigir(auth);
         if (nome.isBlank() || nome.strip().length() > 120)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um nome com até 120 caracteres.");
         var update = new Update().set("nome", nome.strip());
+        if (telefone != null) {
+            if (!telefone.isBlank() && (telefone.length() > 24 || !telefone.matches("[+0-9() .-]+")
+                    || !telefone.replaceAll("[^0-9]", "").matches("[0-9]{8,15}")))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Confira o telefone informado.");
+            update.set("telefone", telefone.strip());
+        }
+        if (cidade != null) {
+            if (cidade.strip().length() > 100)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use até 100 caracteres na cidade.");
+            update.set("cidade", cidade.strip());
+        }
         if (foto != null) update.set("foto", FotoPerfil.preparar(foto));
         mongo.updateFirst(Query.query(where("id").is(conta.id())), update, ContasClientes.Conta.class);
         return perfil(auth);

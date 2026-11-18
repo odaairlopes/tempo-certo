@@ -1,5 +1,7 @@
 "use client";
 
+import { Esqueleto } from "./carregamento";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -45,6 +47,6 @@ export function Menu() {
 }
 export function AreaCliente({ children }: { children: (s: SessaoCliente) => ReactNode }) {
   const { pronta, sessao, salvar } = useSessao();
-  if (!pronta) return <p role="status">Carregando…</p>;
+  if (!pronta) return <Esqueleto texto="Carregando sua conta…" />;
   return sessao ? <div key={sessao.token}>{children(sessao)}</div> : <div className="panel"><ContaCliente aoEntrar={salvar} /></div>;
 }

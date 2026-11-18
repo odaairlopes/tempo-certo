@@ -1,5 +1,7 @@
 "use client";
 
+import { Progresso } from "./carregamento";
+
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiErro, type Agendamento, type Profissional } from "../lib/api";
 import type { SessaoCliente } from "./conta-cliente";
@@ -74,7 +76,7 @@ export default function DataHora({ perfil, sessao, confirmar, voltar, entrar }: 
     <p>{perfil.nome} · {perfil.categoria}</p>
     <label>Data (dia/mês/ano)<input inputMode="numeric" placeholder="dd/mm/aaaa" maxLength={10}
       value={texto} onChange={e => alterar(e.target.value)} required /></label>
-    {data && !consulta && !falhaConsulta && <p role="status">Consultando horários…</p>}
+    {data && !consulta && !falhaConsulta && <Progresso texto="Consultando horários…" />}
     {consulta && (consulta.configurada ?
       <label>Horários disponíveis<select required value={hora} onChange={e => setHora(e.target.value)}>
         <option value="">{consulta.horarios.length ? "Selecione um horário" : "Nenhum horário disponível"}</option>
@@ -84,7 +86,7 @@ export default function DataHora({ perfil, sessao, confirmar, voltar, entrar }: 
     <p className="text-sm">Horário de Brasília</p>
     {erro && <p role="alert" className="notice">{erro}</p>}
     {falhaConsulta && <button type="button" onClick={() => { setFalhaConsulta(false); setErro(""); setRevisao(v => v + 1); }}>Consultar novamente</button>}
-    <button disabled={!consulta || !hora}>{enviando ? "Reservando…" : "Confirmar agendamento"}</button>
+    <button disabled={!consulta || !hora}>{enviando ? <Progresso texto="Confirmando reserva…" /> : "Confirmar agendamento"}</button>
     <button type="button" className="secundario" onClick={voltar}>Voltar</button>
   </fieldset></form>;
 }
