@@ -31,3 +31,15 @@ button:disabled { background: #4c635b; cursor: default; }
 .notice { color: #8d2020; }
 .result { color: var(--brand); overflow-wrap: anywhere; }
 .agenda-item { border-top: 1px solid var(--line); padding-block: .85rem; overflow-wrap: anywhere; }
+
+
+.etapas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .2rem; }
+.etapas li { display: grid; justify-items: center; gap: .4rem; color: var(--muted); font-size: clamp(.65rem, 2vw, .8rem); }
+.etapas li span { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--line); border-radius: 50%; }
+.etapas li[aria-current] { font-weight: 750; color: var(--brand); }
+.etapas li[aria-current] span, .etapas li[data-completo=true] span { color: white; background: var(--brand); }
+button.secundario { background: white; color: var(--brand); border: 1px solid var(--line); }
+button.opcao { display: flex; align-items: center; gap: 1rem; background: #f7faf6; border: 1px solid var(--line); color: var(--ink); text-align: left; }
+button.opcao:hover { border-color: var(--brand); }
+.opcao small { display: block; color: var(--muted); font-weight: 450; }
+.avatar { display: grid; place-items: center; width: 3rem; height: 3rem; flex-shrink: 0; border-radius: 50%; object-fit: cover; background: #dbeae1; }

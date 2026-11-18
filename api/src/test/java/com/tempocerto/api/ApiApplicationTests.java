@@ -47,6 +47,20 @@ class ApiApplicationTests {
     @Autowired
     MongoOperations mongo;
 
+    private String cadastrarEEntrar(HttpClient http, String id) throws Exception {
+        String json = """
+            {"nome":"Cliente Teste","email":"%s@example.com","senha":"senha-de-teste"}
+            """.formatted(id);
+        var cadastro = HttpRequest.newBuilder(uri("/auth/clientes/cadastro")).header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json)).build();
+        assertThat(http.send(cadastro, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(201);
+        var login = HttpRequest.newBuilder(uri("/auth/clientes/login")).header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json)).build();
+        var resposta = http.send(login, HttpResponse.BodyHandlers.ofString());
+        assertThat(resposta.statusCode()).withFailMessage(resposta.body()).isEqualTo(200);
+        return new tools.jackson.databind.ObjectMapper().readTree(resposta.body()).get("token").asString();
+    }
+
     @Test
     void salvaUmaUnicaReservaMesmoComRequisicoesSimultaneas() throws Exception {
         String id = profissionalDeTeste();
@@ -55,7 +69,11 @@ class ApiApplicationTests {
             {"profissionalId":"%s","nomeCliente":"Cliente Teste","emailCliente":"cliente@example.com","dataHora":"%s"}
             """.formatted(id, horario);
         try (var http = HttpClient.newHttpClient()) {
-            var post = HttpRequest.newBuilder(uri("/agendamentos"))
+            var anonimo = HttpRequest.newBuilder(uri("/agendamentos")).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json)).build();
+            assertThat(http.send(anonimo, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(401);
+            var token = cadastrarEEntrar(http, id);
+            var post = HttpRequest.newBuilder(uri("/agendamentos")).header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json)).build();
             var primeira = http.sendAsync(post, HttpResponse.BodyHandlers.ofString());
@@ -70,7 +88,7 @@ class ApiApplicationTests {
             var autorizado = http.send(HttpRequest.newBuilder(agenda).header("X-Agenda-Key", "chave-de-teste").build(),
                 HttpResponse.BodyHandlers.ofString());
             assertThat(autorizado.statusCode()).isEqualTo(200);
-            assertThat(autorizado.body()).contains("Cliente Teste");
+            assertThat(autorizado.body()).contains("Cliente Teste", id + "@example.com").doesNotContain("cliente@example.com");
             assertThat(autorizado.headers().firstValue("Cache-Control")).contains("no-store");
 
             var lista = http.send(HttpRequest.newBuilder(uri("/profissionais")).build(),
@@ -112,11 +130,12 @@ class ApiApplicationTests {
 
             var horarios = HttpRequest.newBuilder(uri(rota + "/horarios?data=" + data)).build();
             assertThat(http.send(horarios, HttpResponse.BodyHandlers.ofString()).body()).contains("09:00", "09:30");
+            var token = cadastrarEEntrar(http, id);
             for (var horario : new String[] {data + "T09:00", data + "T10:00", data.plusWeeks(1) + "T09:00"}) {
                 String json = """
                     {"profissionalId":"%s","nomeCliente":"Cliente","emailCliente":"cliente@example.com","dataHora":"%s"}
                     """.formatted(id, horario);
-                var reserva = HttpRequest.newBuilder(uri("/agendamentos")).header("Content-Type", "application/json")
+                var reserva = HttpRequest.newBuilder(uri("/agendamentos")).header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(json)).build();
                 var resultado = http.send(reserva, HttpResponse.BodyHandlers.ofString());
                 assertThat(resultado.statusCode()).withFailMessage(resultado.body())

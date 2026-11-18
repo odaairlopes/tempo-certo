@@ -27,9 +27,13 @@ public class AgendamentoService {
     }
 
     public Agendamento criar(NovoAgendamento pedido) {
+        return criar(pedido, null);
+    }
+
+    public Agendamento criar(NovoAgendamento pedido, String clienteId) {
         var horario = pedido.dataHora();
         var agoraLocal = LocalDateTime.now(relogio);
-        if (!horario.isAfter(agoraLocal) || horario.getSecond() != 0 || horario.getNano() != 0) {
+        if (horario.getYear() > 9999 || !horario.isAfter(agoraLocal) || horario.getSecond() != 0 || horario.getNano() != 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecione um horário futuro em minutos inteiros.");
         }
         var profissional = profissionais.findById(pedido.profissionalId())
@@ -45,6 +49,7 @@ public class AgendamentoService {
         }
         var agendamento = new Agendamento();
         agendamento.setProfissionalId(profissional.getId());
+        agendamento.setClienteId(clienteId);
         agendamento.setNomeCliente(pedido.nomeCliente().strip());
         agendamento.setEmailCliente(pedido.emailCliente());
         agendamento.setDataHora(horario);

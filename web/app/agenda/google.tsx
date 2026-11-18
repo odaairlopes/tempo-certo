@@ -24,6 +24,6 @@ export default function LoginGoogle({ entrar }: { entrar: (credential: string) =
       google.accounts.id.renderButton(caixa.current, { theme: "outline", size: "large", locale: "pt_BR" });
     }} />
     <div ref={caixa} />
-    {erro && <p role="alert">Não foi possível carregar o login Google. Use sua chave de agenda.</p>}
+    {erro && <p role="alert">Não foi possível carregar o login Google. Tente novamente.</p>}
   </div>);
 }

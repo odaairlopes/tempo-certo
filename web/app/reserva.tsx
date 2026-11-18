@@ -1,158 +1,73 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, horarioLegivel, type Agendamento, type Profissional } from "../lib/api";
+import ContaCliente, { type SessaoCliente } from "./conta-cliente";
+import DataHora from "./data-hora";
 
-type Horarios = { configurada: boolean; horarios: string[] };
+const etapas = ["Conta", "Especialidade", "Profissional", "Data e hora"];
+const titulos = ["Acesse sua conta", "Escolha a especialidade", "Escolha o profissional", "Escolha a data e o horário"];
+const categoria = (p: Profissional) => (p.categoria || "Outros").trim().toLocaleLowerCase("pt-BR");
+
+function Avatar({ perfil }: { perfil: Profissional }) {
+  const [falhou, setFalhou] = useState(false);
+  const iniciais = perfil.nome.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join("");
+  return perfil.fotoUrl && !falhou ? <img className="avatar" src={perfil.fotoUrl} alt="" referrerPolicy="no-referrer"
+    onError={() => setFalhou(true)} /> : <span aria-hidden="true" className="avatar">{iniciais}</span>;
+}
 
 export default function Reserva() {
+  const [passo, setPasso] = useState(0);
+  const [sessao, setSessao] = useState<SessaoCliente | null>(null);
   const [lista, setLista] = useState<Profissional[] | null>(null);
-  const [falhaLista, setFalhaLista] = useState("");
-  const [tentativa, setTentativa] = useState(0);
   const [erro, setErro] = useState("");
+  const [tentativa, setTentativa] = useState(0);
+  const [especialidade, setEspecialidade] = useState("");
+  const [perfil, setPerfil] = useState<Profissional | null>(null);
   const [salvo, setSalvo] = useState<Agendamento | null>(null);
-  const [enviando, setEnviando] = useState(false);
-  const [profissional, setProfissional] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const categorias = new Map<string, string>();
-  for (const item of lista ?? []) {
-    const nome = item.categoria || "Outros";
-    categorias.set(nome.toLocaleLowerCase("pt-BR"), nome);
-  }
-  const [data, setData] = useState("");
-  const [revisao, setRevisao] = useState(0);
-  const [consulta, setConsulta] = useState<{ chave: string; horarios?: Horarios; erro?: string }>({ chave: "" });
-  const chaveConsulta = `${profissional}/${data}/${revisao}`;
-  const resultado = consulta.chave === chaveConsulta ? consulta : null;
-  const horarios = resultado?.horarios;
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const iniciou = useRef(false);
+  useEffect(() => {
+    if (iniciou.current) titulo.current?.focus();
+    iniciou.current = true;
+  }, [passo, salvo]);
 
   useEffect(() => {
-    if (!profissional || !data) return;
+    if (!sessao) return;
     let ativo = true;
-    api<Horarios>(`/profissionais/${encodeURIComponent(profissional)}/horarios?data=${encodeURIComponent(data)}`).then(
-      (dados) => { if (ativo) setConsulta({ chave: chaveConsulta, horarios: dados }); },
-      (falha: Error) => { if (ativo) setConsulta({ chave: chaveConsulta, erro: falha.message }); },
-    );
+    api<Profissional[]>("/profissionais").then(dados => { if (ativo) setLista(dados); },
+      (falha: Error) => { if (ativo) setErro(falha.message); });
     return () => { ativo = false; };
-  }, [profissional, data, chaveConsulta]);
+  }, [sessao, tentativa]);
 
-  useEffect(() => {
-    let ativo = true;
-    api<Profissional[]>("/profissionais").then(
-      (dados) => { if (ativo) setLista(dados); },
-      (falha: Error) => { if (ativo) setFalhaLista(falha.message); },
-    );
-    return () => { ativo = false; };
-  }, [tentativa]);
-
-  async function reservar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (enviando || !horarios) return;
-    const form = event.currentTarget;
-    const dados = Object.fromEntries(new FormData(form));
-    setEnviando(true);
-    setErro("");
-    setSalvo(null);
-    try {
-      setSalvo(await api<Agendamento>("/agendamentos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profissionalId: profissional,
-          dataHora: `${data}T${dados.hora}`,
-          nomeCliente: dados.nomeCliente,
-          emailCliente: dados.emailCliente,
-        }),
-      }));
-      form.reset();
-      setProfissional("");
-      setData("");
-      setRevisao((valor) => valor + 1);
-    } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : "Não foi possível reservar.");
-      setRevisao((valor) => valor + 1);
-    } finally {
-      setEnviando(false);
-    }
+  function acessar(conta: SessaoCliente) {
+    setSessao(conta); setLista(null); setErro(""); setPasso(1);
   }
-
-  return (
-    <form className="panel grid gap-4" onSubmit={reservar} aria-label="Nova reserva">
-      {falhaLista && (
-        <div className="grid gap-2">
-          <p role="alert" className="notice">{falhaLista}</p>
-          <button type="button" onClick={() => { setFalhaLista(""); setTentativa(tentativa + 1); }}>Recarregar profissionais</button>
-        </div>
-      )}
-      <fieldset className="grid gap-4" disabled={enviando || !lista?.length}>
-        <div className="grid gap-1.5">
-          <label htmlFor="categoria">Categoria profissional</label>
-          <select id="categoria" value={categoria} onChange={event => {
-            setCategoria(event.target.value);
-            setProfissional("");
-          }}>
-            <option value="">Todas as categorias</option>
-            {[...categorias.entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
-              .map(([valor, nome]) => <option key={valor} value={valor}>{nome}</option>)}
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <label htmlFor="profissional">Profissional</label>
-          <select id="profissional" name="profissionalId" value={profissional}
-            onChange={(event) => {
-              setProfissional(event.target.value);
-              setRevisao((valor) => valor + 1);
-            }} required>
-            <option value="" disabled>{lista ? "Selecione" : "Carregando…"}</option>
-            {lista?.filter(item => !categoria || (item.categoria || "Outros").toLocaleLowerCase("pt-BR") === categoria)
-              .map(item => <option key={item.id} value={item.id}>{item.nome}</option>)}
-          </select>
-        </div>
-        <label>Data
-          <input type="date" value={data} onChange={(event) => {
-            setData(event.target.value);
-            setRevisao((valor) => valor + 1);
-          }} required />
-        </label>
-        {horarios && (horarios.configurada ? (
-          <div className="grid gap-1.5">
-            <label htmlFor="hora">Horário</label>
-            <select id="hora" name="hora" required key={chaveConsulta} aria-describedby="fuso">
-              <option value="">Selecione</option>
-              {horarios.horarios.map((hora) => <option key={hora} value={hora}>{hora.slice(0, 5)}</option>)}
-            </select>
-          </div>
-        ) : (
-          <label>Horário
-            <input name="hora" type="time" required aria-describedby="fuso" />
-          </label>
-        ))}
-        <p role="status">
-          {profissional && data && !resultado && "Consultando horários…"}
-          {horarios?.configurada && !horarios.horarios.length && "Nenhum horário disponível nesta data."}
-        </p>
-        {resultado?.erro && (
-          <div className="grid gap-2">
-            <p role="alert" className="notice">{resultado.erro}</p>
-            <button type="button" onClick={() => setRevisao((valor) => valor + 1)}>Consultar horários novamente</button>
-          </div>
-        )}
-        <p id="fuso" className="text-sm">Horário de Brasília</p>
-        <label>Seu nome
-          <input name="nomeCliente" autoComplete="name" maxLength={120} required />
-        </label>
-        <label>Seu e-mail
-          <input name="emailCliente" type="email" autoComplete="email" maxLength={254} required />
-        </label>
-        <button type="submit" disabled={!horarios || (horarios.configurada && !horarios.horarios.length)}>
-          {enviando ? "Reservando…" : "Confirmar agendamento"}
-        </button>
-      </fieldset>
-      {lista?.length === 0 && <p role="status">Nenhum profissional cadastrado.</p>}
-      <div>
-        <p role="alert" className="notice">{erro}</p>
-        <p role="status" className="result">{salvo && `Reserva confirmada para ${horarioLegivel(salvo.dataHora)}.`}</p>
-      </div>
-    </form>
-  );
+  function sair() {
+    setSessao(null); setPerfil(null); setEspecialidade(""); setSalvo(null); setErro(""); setPasso(0);
+  }
+  const categorias = new Map((lista ?? []).map(p => [categoria(p), p.categoria || "Outros"]));
+  return <section className="panel grid gap-5" aria-label="Agendamento">
+    <ol className="etapas" aria-label="Etapas do agendamento">{etapas.map((etapa, i) =>
+      <li key={etapa} aria-current={i === passo ? "step" : undefined} data-completo={i < passo || !!salvo}>
+        <span aria-hidden="true">{i + 1}</span>{etapa}</li>)}</ol>
+    <h2 ref={titulo} tabIndex={-1} className="text-2xl font-bold">{salvo ? "Reserva confirmada" : titulos[passo]}</h2>
+    {passo === 0 && <ContaCliente aoEntrar={acessar} />}
+    {passo === 1 && <>
+      <p>Olá, {sessao?.nome}.</p>
+      {erro ? <><p role="alert">{erro}</p><button onClick={() => { setErro(""); setTentativa(v => v + 1); }}>Tentar novamente</button></>
+        : !lista ? <p role="status">Carregando especialidades…</p> : !lista.length && <p>Nenhum profissional cadastrado.</p>}
+      {[...categorias].sort((a, b) => a[1].localeCompare(b[1], "pt-BR")).map(([id, nome]) =>
+        <button className="opcao" key={id} onClick={() => { setEspecialidade(id); setPerfil(null); setPasso(2); }}>{nome}</button>)}
+      <button className="secundario" onClick={sair}>Trocar conta</button></>}
+    {passo === 2 && <>
+      {lista?.filter(p => categoria(p) === especialidade).map(p =>
+        <button className="opcao" key={p.id} onClick={() => { setPerfil(p); setPasso(3); }}>
+          <Avatar perfil={p} /><span>{p.nome}<small>{p.categoria}</small></span></button>)}
+      <button className="secundario" onClick={() => setPasso(1)}>Voltar</button></>}
+    {passo === 3 && perfil && sessao && (salvo ? <>
+      <p role="status">{perfil.nome} · {horarioLegivel(salvo.dataHora)}</p>
+      <button onClick={() => { setSalvo(null); setPerfil(null); setPasso(1); }}>Agendar outro atendimento</button></>
+      : <DataHora perfil={perfil} sessao={sessao} confirmar={setSalvo} voltar={() => setPasso(2)} entrar={sair} />)}
+  </section>;
 }

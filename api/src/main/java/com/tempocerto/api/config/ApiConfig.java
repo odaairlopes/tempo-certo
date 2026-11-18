@@ -26,6 +26,7 @@ public class ApiConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/auth/clientes/*").allowedOrigins(origem).allowedMethods("POST").allowedHeaders("Content-Type");
         registry.addMapping("/auth/google").allowedOrigins(origem).allowedMethods("POST").allowedHeaders("Content-Type");
         registry.addMapping("/profissionais/*/categoria").allowedOrigins(origem).allowedMethods("PUT")
             .allowedHeaders("Content-Type", "X-Agenda-Key");
@@ -34,7 +35,7 @@ public class ApiConfig implements WebMvcConfigurer {
             .allowedHeaders("Content-Type", "X-Agenda-Key");
         for (String rota : new String[] {"/profissionais", "/agendamentos", "/agendamentos/profissional/*"}) {
             registry.addMapping(rota).allowedOrigins(origem).allowedMethods("GET", "POST")
-                .allowedHeaders("Content-Type", "X-Agenda-Key");
+                .allowedHeaders("Content-Type", "X-Agenda-Key", "Authorization");
         }
     }
 

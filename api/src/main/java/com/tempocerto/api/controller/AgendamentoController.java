@@ -14,13 +14,20 @@ import org.springframework.web.bind.annotation.*;
 public class AgendamentoController {
     private final AgendamentoService service;
 
-    public AgendamentoController(AgendamentoService service) {
+    private final com.tempocerto.api.service.ContasClientes contas;
+    public record Reserva(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=128) String profissionalId,
+                          @jakarta.validation.constraints.NotNull java.time.LocalDateTime dataHora) {}
+
+    public AgendamentoController(AgendamentoService service, com.tempocerto.api.service.ContasClientes contas) {
         this.service = service;
+        this.contas = contas;
     }
 
     @PostMapping
-    public Agendamento criar(@Valid @RequestBody NovoAgendamento pedido) {
-        return service.criar(pedido);
+    public Agendamento criar(@Valid @RequestBody Reserva pedido,
+        @RequestHeader(value = "Authorization", required = false) String authorization) {
+        var cliente = contas.exigir(authorization);
+        return service.criar(new NovoAgendamento(pedido.profissionalId(), cliente.nome(), cliente.email(), pedido.dataHora()), cliente.id());
     }
 
     @GetMapping("/profissional/{id}")

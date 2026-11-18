@@ -5,7 +5,7 @@ export default function Home() {
     <section className="grid items-start gap-8 md:grid-cols-2 md:gap-12">
       <div>
         <h1>Agende seu atendimento</h1>
-        <p className="lead">Escolha um profissional e informe o horário da sua preferência.</p>
+        <p className="lead">Entre na sua conta para escolher a especialidade, o profissional e o horário do atendimento.</p>
       </div>
       <Reserva />
     </section>

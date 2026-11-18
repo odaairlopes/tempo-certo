@@ -20,6 +20,8 @@ public class Agendamento {
     @Id
     private String id;
     private String profissionalId;
+    @JsonIgnore
+    private String clienteId;
     private String nomeCliente;
     private String emailCliente;
     private LocalDateTime dataHora;
