@@ -1,64 +1,103 @@
 # TempoCerto
 
-O TempoCerto recebe reservas de clientes autenticados e oferece uma agenda privada por profissional. O frontend usa Next.js, TypeScript e Tailwind. A API usa Java 21, Spring Boot e MongoDB.
+Plataforma de agendamento de atendimentos. O cliente escolhe a especialidade, o profissional e um horário disponível. Cada profissional tem um portal próprio para configurar o expediente e consultar as reservas.
 
-## Categorias e acesso com Google
+**Demonstração:** [Agendar atendimento](https://tempo-certo-flame.vercel.app) · [Portal profissional](https://tempo-certo-flame.vercel.app/profissional)
 
-O cliente entra com e-mail e senha ou com Google. No primeiro acesso pelo Google, a API cria a conta usando o identificador da identidade Google. A reserva segue por especialidade, perfil profissional e data e hora. A sessão de cliente expira em oito horas.
+## Como usar
 
-O portal profissional fica em `/profissional` e exige a credencial da agenda ou a conta Google vinculada ao profissional. O responsável pode editar a categoria e enviar sua foto. Clientes autenticados encontram **Meu perfil** e **Meus atendimentos** na navegação. As fotos aceitam arquivos JPEG ou PNG de até 1 MB e são armazenadas como miniaturas no MongoDB. O Google Agenda abre um evento de 30 minutos para o cliente revisar e salvar. A página de reserva usa as iniciais quando a imagem está ausente ou indisponível. Perfis sem categoria aparecem em **Outros**.
+| Área | Acesso | O que você pode fazer |
+| --- | --- | --- |
+| Agendamento (`/`) | Conta de cliente por Google ou e-mail e senha | Entrar, escolher a especialidade, selecionar o profissional pela foto e confirmar a data e a hora. |
+| Meu perfil (`/perfil`) | Cliente autenticado | Alterar nome e foto, informar telefone e cidade opcionais e consultar o e-mail da conta. |
+| Meus atendimentos (`/atendimentos`) | Cliente autenticado | Consultar as reservas vinculadas à conta e abrir um evento de 30 minutos no Google Agenda para revisar e salvar. |
+| Portal profissional (`/profissional`) | ID e chave da agenda ou Google vinculado ao profissional | Consultar os atendimentos, editar especialidade e foto, definir expediente semanal e cadastrar folgas. |
 
-Para ativar **Entrar com Google**, configure a tela de consentimento no Google Auth Platform e crie um cliente OAuth do tipo **Aplicativo da Web**. Em **Origens JavaScript autorizadas**, adicione `http://localhost:3000` e, quando publicar, a origem HTTPS exata do frontend. Para um aplicativo em teste, inclua a conta usada para validar o acesso entre os usuários de teste.
+A sessão do cliente dura até oito horas. O portal profissional fica fora do menu do cliente. Para testar os dois papéis ao mesmo tempo, abra o portal em outra janela anônima. Fotos de perfil aceitam arquivos JPEG ou PNG de até 1 MB. A API reduz a imagem para até 320 pixels no lado maior e grava a miniatura no MongoDB.
 
-No Compose, coloque o ID público do cliente em `GOOGLE_CLIENT_ID` no arquivo `.env` e execute `docker compose up --build -d`. Na Vercel, configure `NEXT_PUBLIC_GOOGLE_CLIENT_ID` antes do build. Na API hospedada, configure `GOOGLE_CLIENT_ID` com o mesmo valor. O fluxo usa o botão Google Identity Services e exige apenas o ID público. [Configuração do cliente Google](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+### Regras da agenda
 
-Para acessar a agenda profissional, o e-mail da conta deve corresponder a um único profissional cadastrado. O primeiro vínculo aceita contas Gmail ou Google Workspace verificadas. Depois, a API também confere o identificador Google da conta. Cada login cria uma sessão válida até o vencimento do token Google e substitui a sessão Google anterior desse profissional. A chave de agenda continua disponível para acesso manual.
+- As reservas usam o horário de Brasília (`America/Sao_Paulo`). O formulário limita o ano a quatro dígitos e limpa datas anteriores a hoje. A API exige um horário futuro.
+- Antes de configurar o primeiro expediente, o profissional aceita um horário digitado pelo cliente. Depois de salvar a disponibilidade, a agenda oferece horários livres em blocos de 30 minutos, até 365 dias à frente. Dias sem expediente e datas de folga ficam fechados para novas reservas.
+- O nome e o e-mail da reserva vêm da sessão autenticada. Um índice único por profissional e horário protege contra reservas simultâneas para o mesmo início. Se outro cliente ocupar a vaga, a API responde `409`.
+- O link do Google Agenda abre uma cópia do evento. O cliente confirma a inclusão no calendário, sem conceder ao TempoCerto acesso de escrita.
 
-## O que havia no projeto
+## Executar localmente
 
-O Compose inicial subia MongoDB com volume persistente. A API já definia os modelos, repositórios e controllers de profissionais e agendamentos. O mapeamento de `POST /agendamentos` já estava no pacote da aplicação. A configuração do URI usava a propriedade do Spring Boot 3, embora o projeto usasse Spring Boot 4.
+Instale o Docker com o plugin Compose. Na raiz do repositório:
 
-## Como rodar
+1. Faça uma cópia de [`.env.example`](.env.example) com o nome `.env`. Defina `ADMIN_KEY` com uma chave aleatória privada. O login por e-mail e senha já permite testar o fluxo local.
+2. Suba a aplicação:
 
-Requisitos para o ambiente completo: Docker Desktop e Docker Compose.
-
-1. Copie `.env.example` para `.env`. Defina `ADMIN_KEY` com uma chave aleatória de pelo menos 32 bytes. Por exemplo, gere uma com `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
-2. Rode `docker compose up --build -d`.
-3. Cadastre um profissional com a chave administrativa. No PowerShell, com a chave definida também em `$env:ADMIN_KEY`:
-
-   ```powershell
-   $profissional = Invoke-RestMethod http://localhost:8080/profissionais `
-     -Method Post `
-     -Headers @{'X-Admin-Key' = $env:ADMIN_KEY} `
-     -ContentType 'application/json' `
-     -Body '{"nome":"Ana Souza","email":"ana@example.com"}'
-   $profissional | Select-Object id, nome, chaveAgenda
+   ```sh
+   docker compose up --build -d
    ```
 
-4. Em [Agendamento](http://localhost:3000), entre na sua conta, escolha a especialidade e o profissional e reserve um horário futuro de Brasília. Em [Agenda profissional](http://localhost:3000/profissional), use o `id` e a `chaveAgenda` retornados no cadastro.
+3. Acesse o [frontend local](http://localhost:3000). Em um banco novo, cadastre pelo menos um profissional conforme a seção seguinte. A [lista pública de profissionais](http://localhost:8080/profissionais) permite conferir o cadastro.
+4. Entre no [portal profissional local](http://localhost:3000/profissional), defina um expediente futuro e salve. Na janela de cliente, crie uma conta, reserve um dos horários e confira o resultado em **Meus atendimentos** e na agenda do profissional.
 
-O cadastro retorna a chave da agenda uma vez. A API armazena seu hash. Para emitir uma nova chave e invalidar a anterior, use `PUT /profissionais/{id}/chave` com `X-Admin-Key`. Esse endpoint também habilita o acesso dos profissionais cadastrados na versão anterior.
+Use `docker compose logs -f api web` para acompanhar a inicialização e `docker compose down` para parar os serviços preservando os volumes. O banco local padrão é `test`. As portas e o nome do banco podem ser ajustados no `.env`.
 
-Depois de consultar a agenda, salve o expediente semanal e as folgas na seção **Disponibilidade**. A página pública passa a exibir horários livres em blocos de 30 minutos, no horário de Brasília, para os próximos 365 dias. O cadastro antigo aceita o horário digitado até o profissional salvar o primeiro expediente. Salvar dias vazios fecha a agenda para novas reservas. As reservas antigas continuam na agenda.
+### Cadastrar um profissional
 
-O Compose local usa o banco `test`. A versão inicial do Spring Boot gravou os registros existentes nesse banco. Para uma instalação nova, `MONGO_DATABASE` permite escolher outro nome. Se alterar a porta da API ou do frontend, ajuste também `NEXT_PUBLIC_API_URL` ou `FRONTEND_ORIGIN`, respectivamente.
+Em um cliente HTTP, como Postman ou Insomnia, envie `POST http://localhost:8080/profissionais` com o cabeçalho `X-Admin-Key` igual ao valor de `ADMIN_KEY` da API. Selecione corpo JSON e preencha, por exemplo:
 
-### API
+```json
+{
+  "nome": "Ana Souza",
+  "email": "ana@example.com",
+  "categoria": "Fisioterapia"
+}
+```
 
-| Método e rota | Resultado |
+A resposta `201` contém `id`, `nome` e `chaveAgenda`. Guarde o ID e a chave para acessar o portal. Para testar o login profissional com Google, use no cadastro um e-mail real sob seu controle. Na primeira vinculação, a API exige uma conta Gmail ou Google Workspace verificada e um único profissional com aquele e-mail.
+
+Para produção, use o endereço da API do Render e a chave administrativa daquele ambiente. A API armazena o hash da chave de agenda. Se a chave for perdida, `PUT /profissionais/{id}/chave` com `X-Admin-Key` emite outra e invalida a anterior.
+
+## Estrutura do projeto
+
+| Caminho | Responsabilidade |
 | --- | --- |
-| `GET /profissionais` | Lista identificadores e nomes públicos. |
-| `POST /profissionais` | Cria um perfil com a chave administrativa e retorna a chave da agenda. |
-| `POST /auth/clientes/cadastro` | Cria a conta com `nome`, `email` e `senha` e retorna a sessão. |
-| `POST /auth/clientes/login` | Abre uma sessão com `email` e `senha`. |
-| `POST /auth/clientes/google` | Valida a credencial Google e retorna a sessão de cliente. |
-| `POST /agendamentos` | Exige `Authorization: Bearer <token>`. Recebe `profissionalId` e `dataHora` em ISO local. O nome e o e-mail vêm da conta autenticada. |
-| `GET /agendamentos/profissional/{id}` | Lista reservas em ordem cronológica com a credencial `X-Agenda-Key` daquele profissional. |
-| `GET /profissionais/{id}/horarios?data=AAAA-MM-DD` | Retorna se há expediente configurado e quais horários estão livres na data. |
-| `GET /profissionais/{id}/disponibilidade` | Consulta o expediente e as folgas com `X-Agenda-Key`. |
-| `PUT /profissionais/{id}/disponibilidade` | Salva o expediente e as folgas com `X-Agenda-Key`. |
+| [`web/`](web/) | Next.js com App Router, React, TypeScript e Tailwind CSS. Inclui reserva, perfil do cliente e portal profissional. |
+| [`api/`](api/) | Java 21, Spring Boot e Spring Data MongoDB. Autentica as contas, valida a disponibilidade, persiste reservas e processa notificações. |
+| [`infra/`](infra/) | Workflow do n8n, coleta de métricas pelo Prometheus e dashboard do Grafana. |
+| [`docker-compose.yml`](docker-compose.yml) | Ambiente local com web, API e MongoDB, além dos perfis opcionais de automação e observabilidade. |
+| [`render.yaml`](render.yaml) e [CI](.github/workflows/ci.yml) | Blueprint da API e verificações da API e do frontend no GitHub Actions. |
 
-Um índice único no MongoDB protege cada par de profissional e horário mesmo sob concorrência. Horários duplicados retornam 409, dados inválidos retornam 400 e profissionais inexistentes na reserva retornam 404. A versão atual usa horários escolhidos pelo cliente, com precisão de minutos. Caso um volume antigo já contenha reservas duplicadas, faça backup e resolva as duplicatas antes de iniciar a nova API. O MongoDB recusa a criação do índice enquanto houver duplicatas.
+## Configuração e deploy
+
+A demonstração usa a Vercel para o frontend, o Render para a API e o MongoDB Atlas para os dados. Os dois deploys são independentes. Na Vercel, a raiz do projeto é `web` e o framework é Next.js. No Render, o Blueprint usa `api` e seu Dockerfile.
+
+| Ambiente | Variável | Valor ou finalidade |
+| --- | --- | --- |
+| Render | `SPRING_PROFILES_ACTIVE` | `prod`. O perfil de produção exige credenciais na URI do MongoDB e uma chave administrativa. |
+| Render | `MONGODB_URI` | URI do Atlas com usuário da aplicação, senha codificada para URL e nome do banco usado pela instalação. Preserve o nome do banco existente ao atualizar. |
+| Render | `ADMIN_KEY` | Segredo do backend para cadastro de profissionais e emissão de chaves de agenda. |
+| Render | `FRONTEND_ORIGIN` | `https://tempo-certo-flame.vercel.app`, sem barra final. Permite as chamadas do navegador via CORS. |
+| Vercel | `NEXT_PUBLIC_API_URL` | `https://tempo-certo-api.onrender.com`, disponível no ambiente Production durante o build. |
+| Render e Vercel | `GOOGLE_CLIENT_ID` e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Mesmo ID público do cliente OAuth, respectivamente na API e no frontend. |
+
+No Atlas, autorize os endereços de saída da API e conceda ao usuário da aplicação acesso de leitura e escrita ao banco escolhido. Mantenha senhas e chaves fora do Git. As variáveis `NEXT_PUBLIC_*` entram no build e ficam acessíveis ao navegador.
+
+**Login Google.** Crie um cliente OAuth do tipo **Aplicativo da Web**. Em **Origens JavaScript autorizadas**, adicione a origem exata do frontend e `http://localhost:3000` se for testar localmente. Configure o público do aplicativo e as contas de teste conforme o ambiente. No Compose, basta definir `GOOGLE_CLIENT_ID` no `.env` e reconstruir com `docker compose up --build -d`. Na Vercel, faça um novo deploy após alterar uma variável pública. [Configuração no Google Identity Services](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+
+**Conferir a publicação.** Compare o commit da `main` com o deploy em **Vercel → Deployments → Production** e em **Render → tempo-certo-api → Events**. Para alterações na API, aguarde o status **Live**. Abrir `GET /cliente/atendimentos` diretamente, sem sessão, deve retornar `401`. Um `404` nessa rota é motivo para conferir a URL e o commit publicado no backend.
+
+## Referência da API
+
+| Método e rota | Credencial | Operação |
+| --- | --- | --- |
+| `POST /auth/clientes/cadastro` · `POST /auth/clientes/login` | Pública | Cadastro com nome, e-mail e senha de 8 a 128 caracteres, ou login com e-mail e senha. Retorna nome e token. |
+| `POST /auth/clientes/google` · `POST /auth/google` | Credencial Google no JSON | O primeiro abre a sessão de cliente. O segundo autentica um profissional cadastrado. |
+| `GET /profissionais` · `GET /profissionais/{id}/foto` | Pública | Lista os perfis públicos ou entrega a foto do profissional. |
+| `GET /profissionais/{id}/horarios?data=AAAA-MM-DD` | Pública | Informa se existe expediente configurado e quais horários estão livres. |
+| `POST /profissionais` · `PUT /profissionais/{id}/chave` | `X-Admin-Key` | Cadastra o profissional ou renova sua chave. |
+| `PUT /profissionais/{id}/categoria` · `PUT /profissionais/{id}/foto` | `X-Agenda-Key` | Atualiza a categoria em JSON ou envia o campo `foto` via multipart. |
+| `GET /profissionais/{id}/disponibilidade` · `PUT /profissionais/{id}/disponibilidade` | `X-Agenda-Key` | Lê ou salva expediente semanal e folgas. |
+| `GET /agendamentos/profissional/{id}` | `X-Agenda-Key` | Lista as reservas da agenda em ordem cronológica. |
+| `POST /agendamentos` | `Authorization: Bearer <token>` | Recebe `profissionalId` e `dataHora` em ISO local, por exemplo `2030-04-16T14:30`. |
+| `GET /cliente/atendimentos` | Bearer de cliente | Lista os atendimentos vinculados à conta autenticada. |
+| `GET /cliente/perfil` · `PUT /cliente/perfil` | Bearer de cliente | Consulta o perfil ou envia `nome` e os campos opcionais `telefone`, `cidade` e `foto` via multipart. |
 
 ## Confirmação e lembretes por e-mail
 
@@ -79,29 +118,12 @@ A reserva e as entregas ficam no mesmo documento do MongoDB. A API agenda a conf
 - Actuator expõe saúde e métricas na porta interna `8081`, usada pelo Prometheus. A porta pública da API atende as rotas de negócio.
 - Para Sentry, defina `SENTRY_API_DSN` e `SENTRY_WEB_DSN` para execução, e `NEXT_PUBLIC_SENTRY_DSN` para o build do navegador. Execute novamente `docker compose up --build -d` ao mudar uma variável pública. A API envia eventos de erro sem incluir mensagens do driver ou dados das reservas.
 
-## Testes e produção
+## Testes e desenvolvimento
 
-- Em `api/`, rode `./mvnw.cmd verify` no Windows ou `bash mvnw verify` em Linux. Para executar também o teste HTTP com MongoDB, configure `RUN_MONGO_TESTS=true` e `MONGODB_URI` apontando para um banco de testes isolado. O GitHub Actions executa esse cenário e valida o frontend a cada push e pull request.
-- Em `web/`, rode `npm ci`, `npm run typecheck` e `npm run build`. Use `npm run dev` para desenvolvimento fora do container.
-- O Compose padrão é local. Para produção, execute a imagem da API com `SPRING_PROFILES_ACTIVE=prod`, `ADMIN_KEY`, `FRONTEND_ORIGIN` e um `MONGODB_URI` autenticado. Provisione um usuário de aplicação com papel `readWrite` apenas no banco `tempo-certo`. Use TLS no frontend, na API e na conexão com MongoDB. Exemplo de formato: `mongodb://app:<senha-codificada>@<host>/tempo-certo?authSource=tempo-certo&tls=true`.
-- O bundle web precisa de `NEXT_PUBLIC_API_URL` apontando para a URL pública HTTPS da API no build. O navegador acessa a API via CORS com a origem configurada.
+- **API:** em `api/`, com Java 21, rode `.\mvnw.cmd verify` no Windows ou `bash mvnw verify` no Linux. Para incluir a suíte HTTP com persistência real, defina `RUN_MONGO_TESTS=true` e aponte `MONGODB_URI` para um banco exclusivo de testes. A suíte cria registros nesse banco.
+- **Frontend:** em `web/`, com Node.js 24, execute `npm ci`, `npm run typecheck` e `npm run build`. Para desenvolvimento com recarga automática, use `npm run dev` com a API disponível.
+- **CI:** a cada push e pull request, o GitHub Actions executa o Maven com MongoDB e verifica a tipagem e o build do Next.js.
 
-### Demonstração pública em planos gratuitos
+## Limites da demonstração
 
-1. Envie o código para um repositório pessoal no GitHub para ativar o Actions e conectar os serviços.
-2. Crie um cluster **Free** e um usuário de aplicação no MongoDB Atlas. Use um banco novo e habilite acesso apenas a partir dos endereços de saída do serviço da API.
-3. Importe o repositório como Blueprint no Render e confirme que o serviço usa o plano **Free**. Preencha `MONGODB_URI`, `ADMIN_KEY` e `FRONTEND_ORIGIN`. Pode usar `https://example.invalid` temporariamente até obter a URL da Vercel.
-4. Importe o mesmo repositório na Vercel, selecione **Hobby**, configure **Root Directory** como `web` e defina `NEXT_PUBLIC_API_URL` com a URL HTTPS do Render. Defina `FRONTEND_ORIGIN` no Render com a URL publicada pela Vercel, sem barra final.
-5. Cadastre dados fictícios para validar a demonstração. Para testar os e-mails e lembretes, use o Compose local. O Render Free suspende a API por inatividade, portanto as entregas podem atrasar enquanto o serviço estiver suspenso.
-
-O plano Hobby da Vercel é para uso pessoal e não comercial. WhatsApp automático está pendente. A cobrança da plataforma depende da categoria e do contexto de entrega, incluindo lembretes enviados fora da janela de atendimento. [Vercel Hobby](https://vercel.com/docs/plans/hobby) · [Render Free](https://render.com/docs/free) · [Atlas Free](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) · [Preços do WhatsApp](https://business.whatsapp.com/products/platform-pricing)
-
-Para criar o usuário da aplicação em uma instância MongoDB com autenticação habilitada, execute no `mongosh` com uma conta administrativa:
-
-```javascript
-db.getSiblingDB("tempo-certo").createUser({
-  user: "app",
-  pwd: passwordPrompt(),
-  roles: [{ role: "readWrite", db: "tempo-certo" }],
-})
-```
+O cadastro em um banco novo começa vazio. O login de cliente por e-mail e o login por Google usam identidades separadas. Para reencontrar reservas anteriores, entre com o mesmo método e a mesma conta. E-mails de confirmação e lembrete dependem de um webhook ativo, um servidor SMTP e da API em execução. Uma API suspensa pode atrasar as entregas. A integração automática com WhatsApp está pendente.
