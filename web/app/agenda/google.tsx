@@ -4,7 +4,7 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
 type GoogleId = {
-  initialize(options: { client_id: string; callback: (resposta: { credential: string }) => void }): void;
+  initialize(options: { client_id: string; use_fedcm_for_button: boolean; callback: (resposta: { credential: string }) => void }): void;
   renderButton(element: HTMLElement, options: { theme: string; size: string; locale: string }): void;
 };
 
@@ -20,7 +20,7 @@ export default function LoginGoogle({ entrar }: { entrar: (credential: string) =
     <Script src="https://accounts.google.com/gsi/client" onError={() => setErro(true)} onReady={() => {
       const google = (window as Window & { google?: { accounts: { id: GoogleId } } }).google;
       if (!caixa.current || !google) { setErro(true); return; }
-      google.accounts.id.initialize({ client_id: clientId, callback: ({ credential }) => callback.current(credential) });
+      google.accounts.id.initialize({ client_id: clientId, use_fedcm_for_button: true, callback: ({ credential }) => callback.current(credential) });
       google.accounts.id.renderButton(caixa.current, { theme: "outline", size: "large", locale: "pt_BR" });
     }} />
     <div ref={caixa} />

@@ -17,7 +17,7 @@ export function enderecoFoto(url?: string | null) {
 }
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const tempoLimite = base.startsWith("https://") && (!options?.method || options.method === "GET") ? 75_000 : 12_000;
+  const tempoLimite = base.startsWith("https://") && (!options?.method || options.method === "GET" || path.startsWith("/auth/")) ? 75_000 : 12_000;
   let response: Response;
   try {
     response = await fetch(base + path, {
