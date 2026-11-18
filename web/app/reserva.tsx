@@ -1,5 +1,7 @@
 "use client";
 
+import { Esqueleto } from "./carregamento";
+
 import { useEffect, useRef, useState } from "react";
 import { api, horarioLegivel, type Agendamento, type Profissional } from "../lib/api";
 import ContaCliente, { type SessaoCliente } from "./conta-cliente";
@@ -22,7 +24,7 @@ function Avatar({ perfil }: { perfil: Profissional }) {
 
 export default function Reserva() {
   const { pronta, sessao, salvar } = useSessao();
-  if (!pronta) return <p role="status">Carregando…</p>;
+  if (!pronta) return <Esqueleto texto="Carregando…" />;
   return <Fluxo key={sessao?.token ?? "visitante"} sessao={sessao} setSessao={salvar} />;
 }
 
@@ -65,7 +67,7 @@ function Fluxo({ sessao, setSessao }: { sessao: SessaoCliente | null; setSessao:
     {passo === 1 && <>
       <p>Olá, {sessao?.nome}.</p>
       {erro ? <><p role="alert">{erro}</p><button onClick={() => { setErro(""); setTentativa(v => v + 1); }}>Tentar novamente</button></>
-        : !lista ? <p role="status">Carregando especialidades…</p> : !lista.length && <p>Nenhum profissional cadastrado.</p>}
+        : !lista ? <Esqueleto texto="Carregando especialidades…" /> : !lista.length && <p>Nenhum profissional cadastrado.</p>}
       {[...categorias].sort((a, b) => a[1].localeCompare(b[1], "pt-BR")).map(([id, nome]) =>
         <button className="opcao" key={id} onClick={() => { setEspecialidade(id); setPerfil(null); setPasso(2); }}>{nome}</button>)}
       <button className="secundario" onClick={sair}>Trocar conta</button></>}

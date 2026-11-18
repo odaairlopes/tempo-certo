@@ -1,5 +1,7 @@
 "use client";
 
+import { Progresso } from "./carregamento";
+
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import LoginGoogle from "./agenda/google";
@@ -38,7 +40,7 @@ export default function ContaCliente({ aoEntrar }: { aoEntrar: (sessao: SessaoCl
         <label>{cadastro ? "Senha (mínimo de 8 caracteres)" : "Senha"}
           <input type="password" name="senha" autoComplete={cadastro ? "new-password" : "current-password"}
             required minLength={cadastro ? 8 : undefined} maxLength={128} /></label>
-        <button>{enviando ? "Aguarde…" : cadastro ? "Criar conta e continuar" : "Entrar"}</button>
+        <button>{enviando ? <Progresso texto="Acessando sua conta…" /> : cadastro ? "Criar conta e continuar" : "Entrar"}</button>
         <button type="button" className="secundario" onClick={() => { setErro(""); setCadastro(!cadastro); }}>
           {cadastro ? "Já tenho conta" : "Criar uma conta"}</button>
       </fieldset>
