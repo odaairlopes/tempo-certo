@@ -11,8 +11,12 @@ export class ApiErro extends Error {
   constructor(public readonly status: number, mensagem: string) { super(mensagem); }
 }
 
+const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+export function enderecoFoto(url?: string | null) {
+  return url?.startsWith("/profissionais/") ? base + url : url || undefined;
+}
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
   const tempoLimite = base.startsWith("https://") && (!options?.method || options.method === "GET") ? 75_000 : 12_000;
   let response: Response;
   try {

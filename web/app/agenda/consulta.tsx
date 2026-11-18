@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { api, horarioLegivel, type Agendamento, type Profissional } from "../../lib/api";
 import EditarDisponibilidade, { type Configuracao } from "./disponibilidade";
+import Foto from "../foto";
 import LoginGoogle from "./google";
 
 export default function Consulta() {
@@ -10,6 +11,9 @@ export default function Consulta() {
   const [erro, setErro] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [perfil, setPerfil] = useState<Profissional | null>(null);
+  const [foto, setFoto] = useState<File | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [avisoFoto, setAvisoFoto] = useState("");
   const [aviso, setAviso] = useState("");
   const [editor, setEditor] = useState<(Configuracao & { rota: string; chave: string }) | null>(null);
 
@@ -30,6 +34,7 @@ export default function Consulta() {
     setBuscando(true);
     setAgenda(null);
     setEditor(null);
+    setFoto(null); setAvisoFoto("");
     setAviso("");
     setErro("");
     try {
@@ -98,22 +103,37 @@ export default function Consulta() {
         event.preventDefault();
         const dados = new FormData(event.currentTarget);
         const categoria = String(dados.get("categoria")).trim();
-        const fotoUrl = String(dados.get("fotoUrl")).trim();
         setAviso("");
         try {
           const atualizado = await api<Profissional>(`/profissionais/${encodeURIComponent(perfil.id)}/categoria`, {
             method: "PUT", headers: { "Content-Type": "application/json", "X-Agenda-Key": editor.chave },
-            body: JSON.stringify({ categoria, fotoUrl }),
+            body: JSON.stringify({ categoria }),
           });
           setPerfil(atualizado);
           setAviso("Perfil salvo.");
         } catch (falha) { setAviso(falha instanceof Error ? falha.message : "Falha ao salvar."); }
       }}>
         <label>Categoria profissional<input name="categoria" required maxLength={60} defaultValue={perfil.categoria} /></label>
-        <label>Link da foto (HTTPS)<input name="fotoUrl" type="url" pattern="https://.+" maxLength={2048} defaultValue={perfil.fotoUrl ?? ""} /></label>
         <button>Salvar perfil</button>
         <p role="status">{aviso}</p>
       </form>}
+      {editor && perfil && <form className="mt-6 grid gap-3" onSubmit={async event => {
+        event.preventDefault();
+        if (!foto || enviandoFoto) return;
+        const body = new FormData();
+        body.set("foto", foto);
+        setEnviandoFoto(true); setAvisoFoto("");
+        try {
+          const dados = await api<{ fotoUrl: string }>(`/profissionais/${encodeURIComponent(perfil.id)}/foto`, {
+            method: "PUT", headers: { "X-Agenda-Key": editor.chave }, body,
+          });
+          setPerfil(p => p && ({ ...p, fotoUrl: dados.fotoUrl })); setFoto(null); setAvisoFoto("Foto atualizada.");
+        } catch (e) { setAvisoFoto(e instanceof Error ? e.message : "Falha ao enviar foto."); }
+        finally { setEnviandoFoto(false); }
+      }}><fieldset className="grid gap-3" disabled={enviandoFoto}>
+        <Foto key={perfil.fotoUrl} atual={perfil.fotoUrl} escolher={setFoto} />
+        <button disabled={!foto}>{enviandoFoto ? "Enviando…" : "Salvar foto"}</button>
+      </fieldset><p role="status">{avisoFoto}</p></form>}
     </div>
   );
 }

@@ -6,7 +6,7 @@ O TempoCerto recebe reservas de clientes autenticados e oferece uma agenda priva
 
 O cliente entra com e-mail e senha ou com Google. No primeiro acesso pelo Google, a API cria a conta usando o identificador da identidade Google. A reserva segue por especialidade, perfil profissional e data e hora. A sessão de cliente expira em oito horas.
 
-Na agenda profissional, o responsável pode atualizar a categoria e o link HTTPS da foto. A página de reserva usa as iniciais quando a imagem está ausente ou indisponível. Perfis sem categoria aparecem em **Outros**.
+O portal profissional fica em `/profissional` e exige a credencial da agenda ou a conta Google vinculada ao profissional. O responsável pode editar a categoria e enviar sua foto. Clientes autenticados encontram **Meu perfil** e **Meus atendimentos** na navegação. As fotos aceitam arquivos JPEG ou PNG de até 1 MB e são armazenadas como miniaturas no MongoDB. O Google Agenda abre um evento de 30 minutos para o cliente revisar e salvar. A página de reserva usa as iniciais quando a imagem está ausente ou indisponível. Perfis sem categoria aparecem em **Outros**.
 
 Para ativar **Entrar com Google**, configure a tela de consentimento no Google Auth Platform e crie um cliente OAuth do tipo **Aplicativo da Web**. Em **Origens JavaScript autorizadas**, adicione `http://localhost:3000` e, quando publicar, a origem HTTPS exata do frontend. Para um aplicativo em teste, inclua a conta usada para validar o acesso entre os usuários de teste.
 
@@ -35,7 +35,7 @@ Requisitos para o ambiente completo: Docker Desktop e Docker Compose.
    $profissional | Select-Object id, nome, chaveAgenda
    ```
 
-4. Em [Agendamento](http://localhost:3000), entre na sua conta, escolha a especialidade e o profissional e reserve um horário futuro de Brasília. Em [Agenda profissional](http://localhost:3000/agenda), use o `id` e a `chaveAgenda` retornados no cadastro.
+4. Em [Agendamento](http://localhost:3000), entre na sua conta, escolha a especialidade e o profissional e reserve um horário futuro de Brasília. Em [Agenda profissional](http://localhost:3000/profissional), use o `id` e a `chaveAgenda` retornados no cadastro.
 
 O cadastro retorna a chave da agenda uma vez. A API armazena seu hash. Para emitir uma nova chave e invalidar a anterior, use `PUT /profissionais/{id}/chave` com `X-Admin-Key`. Esse endpoint também habilita o acesso dos profissionais cadastrados na versão anterior.
 

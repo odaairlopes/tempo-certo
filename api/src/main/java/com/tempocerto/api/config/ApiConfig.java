@@ -26,6 +26,10 @@ public class ApiConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/cliente/**").allowedOrigins(origem).allowedMethods("GET", "PUT")
+            .allowedHeaders("Content-Type", "Authorization");
+        registry.addMapping("/profissionais/*/foto").allowedOrigins(origem).allowedMethods("GET", "PUT")
+            .allowedHeaders("Content-Type", "X-Agenda-Key");
         registry.addMapping("/auth/clientes/*").allowedOrigins(origem).allowedMethods("POST").allowedHeaders("Content-Type");
         registry.addMapping("/auth/google").allowedOrigins(origem).allowedMethods("POST").allowedHeaders("Content-Type");
         registry.addMapping("/profissionais/*/categoria").allowedOrigins(origem).allowedMethods("PUT")
