@@ -1,0 +1,90 @@
+services:
+  mongodb:
+    image: mongo:8.2.12
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/${MONGO_DATABASE:-test}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      ADMIN_KEY: ${ADMIN_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
+      N8N_WEBHOOK_KEY: ${N8N_WEBHOOK_KEY:-}
+      SENTRY_DSN: ${SENTRY_API_DSN:-}
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    environment:
+      SENTRY_DSN: ${SENTRY_WEB_DSN:-}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.48.4
+    profiles: ["automacao"]
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      EXECUTIONS_DATA_SAVE_ON_ERROR: none
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./infra/n8n:/workflows:ro
+
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    profiles: ["automacao"]
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8030}:8025"
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    profiles: ["observabilidade"]
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9095}:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    profiles: ["observabilidade"]
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3301}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana:/etc/grafana/provisioning:ro
+
+volumes:
+  mongo_data:
+  n8n_data:
+  prometheus_data:
+  grafana_data:

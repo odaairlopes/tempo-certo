@@ -1,0 +1,60 @@
+{
+  "name": "TempoCerto · Confirmação e lembrete",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "confirmar-agendamento",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1ad94e36-683d-4a10-a9d4-bc978ad559ea",
+      "name": "Reserva criada",
+      "webhookId": "176ebc2b-e519-4cbb-a53a-4776d7583b22"
+    },
+    {
+      "parameters": {
+        "fromEmail": "reservas@tempocerto.example",
+        "toEmail": "={{ $json.body.emailCliente }}",
+        "subject": "={{ $json.body.tipo === \"LEMBRETE\" ? \"Lembrete de agendamento | TempoCerto\" : \"Agendamento confirmado | TempoCerto\" }}",
+        "emailFormat": "text",
+        "text": "={{ 'Olá, ' + $json.body.nomeCliente + '! Seu atendimento com ' + $json.body.profissional + ($json.body.tipo === \"LEMBRETE\" ? \" está marcado para \" : \" foi confirmado para \") + $json.body.dataHora.split('T')[0].split('-').reverse().join('/') + ' às ' + $json.body.dataHora.split('T')[1].slice(0, 5) + ' (horário de Brasília).' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        260,
+        0
+      ],
+      "id": "25b3ad46-f2dc-4876-8440-d0ef4a5e9a19",
+      "name": "Enviar confirmação"
+    }
+  ],
+  "connections": {
+    "Reserva criada": {
+      "main": [
+        [
+          {
+            "node": "Enviar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
