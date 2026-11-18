@@ -19,7 +19,7 @@ class GoogleControllerTest {
     private final ProfissionalRepository perfis = mock(ProfissionalRepository.class);
     private final MongoOperations mongo = mock(MongoOperations.class);
     private final JwtDecoder decoder = mock(JwtDecoder.class);
-    private final GoogleController login = new GoogleController("cliente", perfis, mongo, decoder);
+    private final GoogleController login = new GoogleController(new com.tempocerto.api.service.IdentidadeGoogle("cliente", decoder), perfis, mongo);
     private final GoogleController.Login pedido = new GoogleController.Login("token");
 
     private void identidade(String audiencia, String email) {

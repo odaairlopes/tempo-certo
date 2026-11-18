@@ -96,18 +96,22 @@ export default function Consulta() {
       {editor && <EditarDisponibilidade rota={editor.rota} chave={editor.chave} inicial={editor.disponibilidade} />}
       {editor && perfil && <form className="mt-6 grid gap-3" onSubmit={async event => {
         event.preventDefault();
-        const categoria = String(new FormData(event.currentTarget).get("categoria")).trim();
+        const dados = new FormData(event.currentTarget);
+        const categoria = String(dados.get("categoria")).trim();
+        const fotoUrl = String(dados.get("fotoUrl")).trim();
         setAviso("");
         try {
-          await api<Profissional>(`/profissionais/${encodeURIComponent(perfil.id)}/categoria`, {
+          const atualizado = await api<Profissional>(`/profissionais/${encodeURIComponent(perfil.id)}/categoria`, {
             method: "PUT", headers: { "Content-Type": "application/json", "X-Agenda-Key": editor.chave },
-            body: JSON.stringify({ categoria }),
+            body: JSON.stringify({ categoria, fotoUrl }),
           });
-          setAviso("Categoria salva.");
+          setPerfil(atualizado);
+          setAviso("Perfil salvo.");
         } catch (falha) { setAviso(falha instanceof Error ? falha.message : "Falha ao salvar."); }
       }}>
         <label>Categoria profissional<input name="categoria" required maxLength={60} defaultValue={perfil.categoria} /></label>
-        <button>Salvar categoria</button>
+        <label>Link da foto (HTTPS)<input name="fotoUrl" type="url" pattern="https://.+" maxLength={2048} defaultValue={perfil.fotoUrl ?? ""} /></label>
+        <button>Salvar perfil</button>
         <p role="status">{aviso}</p>
       </form>}
     </div>

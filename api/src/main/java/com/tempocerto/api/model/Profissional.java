@@ -13,6 +13,7 @@ public class Profissional {
     private String email;
     private String chaveAgendaHash;
     private String categoria;
+    private String fotoUrl;
     private String googleSub;
     private String sessaoHash;
     private java.time.Instant sessaoAte;

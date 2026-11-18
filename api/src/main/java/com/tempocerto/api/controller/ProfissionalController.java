@@ -40,6 +40,7 @@ public class ProfissionalController {
         var profissional = new Profissional();
         profissional.setNome(pedido.nome().strip());
         profissional.setEmail(pedido.email());
+        profissional.setFotoUrl(pedido.fotoUrl());
         profissional.setCategoria(pedido.categoria() == null ? null : pedido.categoria().strip());
         String novaChave = AcessoAgenda.gerarChave();
         profissional.setChaveAgendaHash(AcessoAgenda.hash(novaChave));
@@ -64,7 +65,7 @@ public class ProfissionalController {
     @GetMapping
     public List<PerfilPublico> listar() {
         return repository.findAll().stream().map(p -> new PerfilPublico(p.getId(), p.getNome(),
-            p.getCategoria() == null || p.getCategoria().isBlank() ? "Outros" : p.getCategoria())).toList();
+            p.getCategoria() == null || p.getCategoria().isBlank() ? "Outros" : p.getCategoria(), p.getFotoUrl())).toList();
     }
 
     @PutMapping("/{id}/categoria")
@@ -73,19 +74,21 @@ public class ProfissionalController {
         var perfil = repository.findById(id).orElse(null);
         var acesso = AcessoAgenda.autorizar(perfil, chave);
         String categoria = pedido.categoria().strip();
+        var update = new Update().set("categoria", categoria);
+        if (pedido.fotoUrl() != null) update.set("fotoUrl", pedido.fotoUrl());
         var alteracao = mongo.updateFirst(Query.query(Criteria.where("id").is(id)).addCriteria(acesso),
-            new Update().set("categoria", categoria), Profissional.class);
+            update, Profissional.class);
         if (alteracao.getMatchedCount() != 1) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Credencial de acesso inválida.");
         }
-        return new PerfilPublico(id, perfil.getNome(), categoria);
+        return new PerfilPublico(id, perfil.getNome(), categoria, pedido.fotoUrl() == null ? perfil.getFotoUrl() : pedido.fotoUrl());
     }
 
-    public record Categoria(@NotBlank @Size(max = 60) String categoria) {}
+    public record Categoria(@NotBlank @Size(max = 60) String categoria, @Size(max=2048) @jakarta.validation.constraints.Pattern(regexp="(?:https://[^\\s]+)?") String fotoUrl) {}
 
     public record NovoProfissional(@NotBlank @Size(max = 120) String nome,
-                                   @NotBlank @Email @Size(max = 254) String email, @Size(max = 60) String categoria) {}
+                                   @NotBlank @Email @Size(max = 254) String email, @Size(max = 60) String categoria, @Size(max=2048) @jakarta.validation.constraints.Pattern(regexp="(?:https://[^\\s]+)?") String fotoUrl) {}
 
-    public record PerfilPublico(String id, String nome, String categoria) {}
+    public record PerfilPublico(String id, String nome, String categoria, String fotoUrl) {}
     public record Credenciais(String id, String nome, String chaveAgenda) {}
 }

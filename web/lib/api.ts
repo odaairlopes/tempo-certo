@@ -1,4 +1,4 @@
-export type Profissional = { id: string; nome: string; categoria: string };
+export type Profissional = { id: string; nome: string; categoria: string; fotoUrl?: string | null };
 export type Agendamento = {
   id: string;
   profissionalId: string;
@@ -6,6 +6,10 @@ export type Agendamento = {
   emailCliente: string;
   dataHora: string;
 };
+
+export class ApiErro extends Error {
+  constructor(public readonly status: number, mensagem: string) { super(mensagem); }
+}
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -22,7 +26,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (!response.ok) {
     const problem: { detail?: unknown } | null = await response.json().catch(() => null);
-    throw new Error(typeof problem?.detail === "string" ? problem.detail : "Não foi possível concluir a operação.");
+    throw new ApiErro(response.status, typeof problem?.detail === "string" ? problem.detail : "Não foi possível concluir a operação.");
   }
   return response.json() as Promise<T>;
 }

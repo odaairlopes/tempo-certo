@@ -1,16 +1,18 @@
 # TempoCerto
 
-O TempoCerto recebe reservas públicas e oferece uma agenda privada por profissional. O frontend usa Next.js, TypeScript e Tailwind. A API usa Java 21, Spring Boot e MongoDB.
+O TempoCerto recebe reservas de clientes autenticados e oferece uma agenda privada por profissional. O frontend usa Next.js, TypeScript e Tailwind. A API usa Java 21, Spring Boot e MongoDB.
 
 ## Categorias e acesso com Google
 
-O profissional pode editar sua categoria após entrar na agenda. O cadastro administrativo aceita o campo opcional `categoria`. Na página de reserva, o cliente pode filtrar os profissionais por categoria. Perfis antigos aparecem em **Outros** até receberem uma categoria.
+O cliente entra com e-mail e senha ou com Google. No primeiro acesso pelo Google, a API cria a conta usando o identificador da identidade Google. A reserva segue por especialidade, perfil profissional e data e hora. A sessão de cliente expira em oito horas.
+
+Na agenda profissional, o responsável pode atualizar a categoria e o link HTTPS da foto. A página de reserva usa as iniciais quando a imagem está ausente ou indisponível. Perfis sem categoria aparecem em **Outros**.
 
 Para ativar **Entrar com Google**, configure a tela de consentimento no Google Auth Platform e crie um cliente OAuth do tipo **Aplicativo da Web**. Em **Origens JavaScript autorizadas**, adicione `http://localhost:3000` e, quando publicar, a origem HTTPS exata do frontend. Para um aplicativo em teste, inclua a conta usada para validar o acesso entre os usuários de teste.
 
 No Compose, coloque o ID público do cliente em `GOOGLE_CLIENT_ID` no arquivo `.env` e execute `docker compose up --build -d`. Na Vercel, configure `NEXT_PUBLIC_GOOGLE_CLIENT_ID` antes do build. Na API hospedada, configure `GOOGLE_CLIENT_ID` com o mesmo valor. O fluxo usa o botão Google Identity Services e exige apenas o ID público. [Configuração do cliente Google](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
 
-O e-mail da conta deve corresponder a um único profissional cadastrado. O primeiro vínculo aceita contas Gmail ou Google Workspace verificadas. Depois, a API também confere o identificador Google da conta. Cada login cria uma sessão válida até o vencimento do token Google e substitui a sessão Google anterior desse profissional. A chave de agenda continua disponível para acesso manual.
+Para acessar a agenda profissional, o e-mail da conta deve corresponder a um único profissional cadastrado. O primeiro vínculo aceita contas Gmail ou Google Workspace verificadas. Depois, a API também confere o identificador Google da conta. Cada login cria uma sessão válida até o vencimento do token Google e substitui a sessão Google anterior desse profissional. A chave de agenda continua disponível para acesso manual.
 
 ## O que havia no projeto
 
@@ -33,7 +35,7 @@ Requisitos para o ambiente completo: Docker Desktop e Docker Compose.
    $profissional | Select-Object id, nome, chaveAgenda
    ```
 
-4. Em [Agendamento](http://localhost:3000), selecione o profissional e reserve um horário futuro de Brasília. Em [Agenda profissional](http://localhost:3000/agenda), use o `id` e a `chaveAgenda` retornados no cadastro.
+4. Em [Agendamento](http://localhost:3000), entre na sua conta, escolha a especialidade e o profissional e reserve um horário futuro de Brasília. Em [Agenda profissional](http://localhost:3000/agenda), use o `id` e a `chaveAgenda` retornados no cadastro.
 
 O cadastro retorna a chave da agenda uma vez. A API armazena seu hash. Para emitir uma nova chave e invalidar a anterior, use `PUT /profissionais/{id}/chave` com `X-Admin-Key`. Esse endpoint também habilita o acesso dos profissionais cadastrados na versão anterior.
 
@@ -47,7 +49,10 @@ O Compose local usa o banco `test`. A versão inicial do Spring Boot gravou os r
 | --- | --- |
 | `GET /profissionais` | Lista identificadores e nomes públicos. |
 | `POST /profissionais` | Cria um perfil com a chave administrativa e retorna a chave da agenda. |
-| `POST /agendamentos` | Persiste a reserva e retorna HTTP 200. Recebe `profissionalId`, `nomeCliente`, `emailCliente` e `dataHora` em ISO local, como `2030-04-16T14:30`. |
+| `POST /auth/clientes/cadastro` | Cria a conta com `nome`, `email` e `senha` e retorna a sessão. |
+| `POST /auth/clientes/login` | Abre uma sessão com `email` e `senha`. |
+| `POST /auth/clientes/google` | Valida a credencial Google e retorna a sessão de cliente. |
+| `POST /agendamentos` | Exige `Authorization: Bearer <token>`. Recebe `profissionalId` e `dataHora` em ISO local. O nome e o e-mail vêm da conta autenticada. |
 | `GET /agendamentos/profissional/{id}` | Lista reservas em ordem cronológica com a credencial `X-Agenda-Key` daquele profissional. |
 | `GET /profissionais/{id}/horarios?data=AAAA-MM-DD` | Retorna se há expediente configurado e quais horários estão livres na data. |
 | `GET /profissionais/{id}/disponibilidade` | Consulta o expediente e as folgas com `X-Agenda-Key`. |
